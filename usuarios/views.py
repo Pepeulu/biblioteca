@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.db import connection
 from django.contrib import messages
+from django.db.utils import IntegrityError
 from .login_ultilitarios import autenticar_usuario, criar_usuario
 from datetime import date
 
@@ -66,7 +67,7 @@ def usuarios_delete(request, id):
     
     try:
         execute("DELETE FROM Usuarios WHERE ID_usuario=%s", [id])
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, IntegrityError):
         messages.error(request, "não foi possivel realizar")
     return redirect('usuarios')
 

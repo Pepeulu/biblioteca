@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.db import connection
 from django.contrib import messages
+from django.db.utils import IntegrityError
 from datetime import date
 
 
@@ -130,7 +131,7 @@ def livros_edit(request, id):
 def livros_delete(request, id):
     try:
         execute("DELETE FROM Livros WHERE ID_livro = %s", [id])
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, IntegrityError):
         messages.error(request, "não foi possivel realizar")
     return redirect('livros')
 

@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect
 from django.db import connection
 from datetime import date
 from django.contrib import messages
+from django.db.utils import IntegrityError
+
 
 
 def login_required(view_func):
@@ -183,7 +185,7 @@ def emprestimos_edit(request, id):
 def emprestimos_delete(request, id):
     try:
         execute("DELETE FROM Emprestimos WHERE ID_emprestimo = %s", [id])
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, IntegrityError):
         messages.error(request, "não foi possivel realizar")
     return redirect('emprestimos')
 

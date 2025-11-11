@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.db import connection
 from django.contrib import messages
+from django.db.utils import IntegrityError
 
 def login_required(view_func):
     def wrapper(request, *args, **kwargs):
@@ -55,7 +56,7 @@ def autores_edit(request, id):
 def autores_delete(request, id):
     try:
         execute("DELETE FROM Autores WHERE ID_autor=%s", [id])
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, IntegrityError):
         messages.error(request, "não foi possivel realizar")
         
         return redirect('emprestimos_edit', id=id)

@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.db import connection
 from django.contrib import messages
+from django.db.utils import IntegrityError
 
 
 def login_required(view_func):
@@ -47,7 +48,7 @@ def generos_edit(request, id):
 def generos_delete(request, id):
     try:
         execute("DELETE FROM Generos WHERE ID_genero=%s", [id])
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, IntegrityError):
         messages.error(request, "não foi possivel realizar")
     return redirect('generos')
 
