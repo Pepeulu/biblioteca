@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Detalhes da Auditoria{% endblock %}
+{% block content %}
+  <h2>Detalhes do Registro de Auditoria #{{ audit.ID_auditoria }}</h2>
+  
+  <div style="background:#f8f9fa;padding:20px;border-radius:6px;margin-bottom:20px; color:black;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <p><strong>Data/Hora:</strong> {{ audit.Data_hora|date:"d/m/Y H:i:s" }}</p>
+        <p><strong>Tabela Afetada:</strong> <span style="background:#e9ecef;padding:3px 8px;border-radius:3px">{{ audit.Tabela_afetada }}</span></p>
+        <p><strong>Operação:</strong> 
+          {% if audit.Operacao == 'INSERT' %}
+            <span style="background:#d4edda;color:#155724;padding:3px 8px;border-radius:3px">INSERT</span>
+          {% elif audit.Operacao == 'UPDATE' %}
+            <span style="background:#fff3cd;color:#856404;padding:3px 8px;border-radius:3px">UPDATE</span>
+          {% else %}
+            <span style="background:#f8d7da;color:#721c24;padding:3px 8px;border-radius:3px">DELETE</span>
+          {% endif %}
+        </p>
+      </div>
+      
+      <div>
+        <p><strong>ID do Registro:</strong> {{ audit.ID_registro }}</p>
+        <p><strong>Usuário do Sistema:</strong> {{ audit.Usuario_sistema }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#fff;border:1px solid #dee2e6;border-radius:6px;padding:20px;margin-bottom:15px; color:black;">
+    <h3 style="margin-top:0;color:#495057">Descrição</h3>
+    <p style="margin:0">{{ audit.Descricao }}</p>
+  </div>
+
+  {% if audit.Dados_antigos %}
+  <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:20px;margin-bottom:15px; color:black;">
+    <h3 style="margin-top:0;color:#856404">Dados Antigos</h3>
+    <pre style="background:#fff;padding:15px;border-radius:4px;overflow-x:auto;margin:0">{{ audit.Dados_antigos }}</pre>
+  </div>
+  {% endif %}
+
+  {% if audit.Dados_novos %}
+  <div style="background:#d4edda;border:1px solid #28a745;border-radius:6px;padding:20px;margin-bottom:15px; color:black;">
+    <h3 style="margin-top:0;color:#155724">Dados Novos</h3>
+    <pre style="background:#fff;padding:15px;border-radius:4px;overflow-x:auto;margin:0">{{ audit.Dados_novos }}</pre>
+  </div>
+  {% endif %}
+
+  {% if audit.Campos_alterados %}
+  <div style="background:#d1ecf1;border:1px solid #17a2b8;border-radius:6px;padding:20px;margin-bottom:15px; color:black;">
+    <h3 style="margin-top:0;color:#0c5460">Campos Alterados</h3>
+    <pre style="background:#fff;padding:15px;border-radius:4px;overflow-x:auto;margin:0">{{ audit.Campos_alterados }}</pre>
+  </div>
+  {% endif %}
+
+  <a class="btn" style="background:#6c757d;color:white;text-decoration:none" href="{% url 'auditoria' %}">← Voltar para Auditoria</a>
+{% endblock %}

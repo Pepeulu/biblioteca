@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'generos',
     'livros',
     'usuarios',
+    'auditoria',
 ]
 
 MIDDLEWARE = [

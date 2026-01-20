@@ -3,6 +3,7 @@ from django.db import connection
 from django.contrib import messages
 from django.db.utils import IntegrityError
 from datetime import date
+import re
 
 
 def login_required(view_func):
@@ -26,6 +27,14 @@ def execute(sql, params=None):
     return True
 
 
+def extract_error_message(error_str):
+    """Extrai mensagem de erro do MySQL"""
+    match = re.search(r"'([^']*)'$", str(error_str))
+    if match:
+        return match.group(1)
+    return str(error_str)
+
+
 @login_required
 def livros(request):
     dados = query("SELECT * FROM Livros")
@@ -38,45 +47,43 @@ def livros_add(request):
         titulo = request.POST.get('titulo')
         autor_id = request.POST.get('autor')
         isbn = request.POST.get('isbn')
-        ano = request.POST.get('ano') or str(date.today())
+        ano = request.POST.get('ano') or None
         genero_id = request.POST.get('genero')
         editora_id = request.POST.get('editora')
         qtd = request.POST.get('quantidade')
         resumo = request.POST.get('resumo')
 
-        if not autor_id:
-            messages.error(request, "Você deve selecionar um autor para o livro.")
-            return redirect('livros_add')
-        if not genero_id:
-            messages.error(request, "Você deve selecionar um genero literário para o livro.")
-            return redirect('livros_add')
-        if not editora_id:
-            messages.error(request, "Você deve selecionar uma editora para o livro.")
-            return redirect('livros_add')
-        if not titulo:
-            messages.error(request, "Você deve indicar um titulo para o livro.")
-            return redirect('livros_add')
-        if not isbn:
-            messages.error(request, "Você deve indicar um isbn para o livro.")
-            return redirect('livros_add')
-        if not qtd:
-            messages.error(request, "Você deve indicar uma quantidade para o livro.")
-            return redirect('livros_add')
-        elif int(qtd) < 0:
-            messages.error(request, "Você deve indicar uma quantidade valida para o livro.")
-            return redirect('livros_add')
-        if not resumo:
-            messages.error(request, "Você deve indicar um resumo para o livro.")
-            return redirect('livros_add')
-        
-
-        execute("""
-            INSERT INTO Livros 
-            (Titulo, Autor_id, ISBN, Ano_publicacao, Genero_id, Editora_id, Quantidade_disponivel, Resumo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, [titulo, autor_id, isbn, ano, genero_id, editora_id, qtd, resumo])
-
-        return redirect('livros')
+        try:
+            execute("""
+                INSERT INTO Livros 
+                (Titulo, Autor_id, ISBN, Ano_publicacao, Genero_id, Editora_id, Quantidade_disponivel, Resumo)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, [titulo, autor_id, isbn, ano, genero_id, editora_id, qtd, resumo])
+            
+            messages.success(request, f"Livro '{titulo}' cadastrado com sucesso!")
+            return redirect('livros')
+            
+        except Exception as e:
+            error_msg = extract_error_message(e)
+            messages.error(request, f"Erro ao cadastrar livro: {error_msg}")
+            
+            # Retorna dados para preencher o formulário novamente
+            autores = query("SELECT * FROM Autores")
+            generos = query("SELECT * FROM Generos")
+            editoras = query("SELECT * FROM Editoras")
+            return render(request, 'livro_add.html', {
+                'autores': autores,
+                'generos': generos,
+                'editoras': editoras,
+                'titulo': titulo,
+                'autor_id': autor_id,
+                'isbn': isbn,
+                'ano': ano,
+                'genero_id': genero_id,
+                'editora_id': editora_id,
+                'qtd': qtd,
+                'resumo': resumo
+            })
 
     autores = query("SELECT * FROM Autores")
     generos = query("SELECT * FROM Generos")
@@ -100,20 +107,32 @@ def livros_edit(request, id):
         qtd = request.POST.get('quantidade')
         resumo = request.POST.get('resumo')
 
-        execute("""
-            UPDATE Livros 
-            SET Titulo = %s, 
-                Autor_id = %s, 
-                ISBN = %s, 
-                Ano_publicacao = %s,
-                Genero_id = %s, 
-                Editora_id = %s, 
-                Quantidade_disponivel = %s, 
-                Resumo = %s
-            WHERE ID_livro = %s
-        """, [titulo, autor_id, isbn, ano, genero_id, editora_id, qtd, resumo, id])
-
-        return redirect('livros')
+        try:
+            execute("""
+                UPDATE Livros 
+                SET Titulo = %s, 
+                    Autor_id = %s, 
+                    ISBN = %s, 
+                    Ano_publicacao = %s,
+                    Genero_id = %s, 
+                    Editora_id = %s, 
+                    Quantidade_disponivel = %s, 
+                    Resumo = %s
+                WHERE ID_livro = %s
+            """, [titulo, autor_id, isbn, ano, genero_id, editora_id, qtd, resumo, id])
+            
+            messages.success(request, f"Livro '{titulo}' atualizado com sucesso!")
+            
+            # Verificar se a quantidade mudou e informar
+            livro_antigo = query("SELECT Quantidade_disponivel FROM Livros WHERE ID_livro = %s", [id])
+            if livro_antigo and int(qtd) != livro_antigo[0]['Quantidade_disponivel']:
+                messages.info(request, f"Estoque atualizado automaticamente pelo sistema")
+            
+            return redirect('livros')
+            
+        except Exception as e:
+            error_msg = extract_error_message(e)
+            messages.error(request, f"Erro ao atualizar livro: {error_msg}")
 
     livro = query("SELECT * FROM Livros WHERE ID_livro = %s", [id])[0]
     autores = query("SELECT * FROM Autores")
@@ -130,9 +149,19 @@ def livros_edit(request, id):
 @login_required
 def livros_delete(request, id):
     try:
-        execute("DELETE FROM Livros WHERE ID_livro = %s", [id])
-    except (TypeError, ValueError, IntegrityError):
-        messages.error(request, "não foi possivel realizar")
+        livro = query("SELECT Titulo FROM Livros WHERE ID_livro = %s", [id])
+        if livro:
+            titulo = livro[0]['Titulo']
+            execute("DELETE FROM Livros WHERE ID_livro = %s", [id])
+            messages.success(request, f"Livro '{titulo}' excluído com sucesso!")
+        else:
+            messages.error(request, "Livro não encontrado")
+    except IntegrityError:
+        messages.error(request, "Não é possível excluir este livro pois existem empréstimos vinculados a ele")
+    except Exception as e:
+        error_msg = extract_error_message(e)
+        messages.error(request, f"Erro ao excluir livro: {error_msg}")
+    
     return redirect('livros')
 
 

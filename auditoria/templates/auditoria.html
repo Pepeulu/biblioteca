@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Auditoria do Sistema{% endblock %}
+{% block content %}
+  <h2>Auditoria do Sistema</h2>
+  
+  <div style="background:#f8f9fa;padding:15px;border-radius:6px;margin-bottom:20px; color:black;">
+    <h4 style="margin-top:0">Filtros</h4>
+    <form method="get" action="{% url 'auditoria' %}">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
+        <div>
+          <label style="display:block;margin-bottom:5px;font-weight:600">Tabela</label>
+          <select name="tabela" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px">
+            <option value="">Todas</option>
+            {% for t in tabelas %}
+              <option value="{{ t.Tabela_afetada }}" {% if filtro_tabela == t.Tabela_afetada %}selected{% endif %}>
+                {{ t.Tabela_afetada }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div>
+          <label style="display:block;margin-bottom:5px;font-weight:600">Operação</label>
+          <select name="operacao" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px">
+            <option value="">Todas</option>
+            <option value="INSERT" {% if filtro_operacao == 'INSERT' %}selected{% endif %}>INSERT</option>
+            <option value="UPDATE" {% if filtro_operacao == 'UPDATE' %}selected{% endif %}>UPDATE</option>
+            <option value="DELETE" {% if filtro_operacao == 'DELETE' %}selected{% endif %}>DELETE</option>
+          </select>
+        </div>
+        
+        <div>
+          <label style="display:block;margin-bottom:5px;font-weight:600">Período</label>
+          <select name="dias" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px">
+            <option value="1" {% if filtro_dias == '1' %}selected{% endif %}>Último dia</option>
+            <option value="7" {% if filtro_dias == '7' %}selected{% endif %}>Últimos 7 dias</option>
+            <option value="30" {% if filtro_dias == '30' %}selected{% endif %}>Últimos 30 dias</option>
+            <option value="90" {% if filtro_dias == '90' %}selected{% endif %}>Últimos 90 dias</option>
+            <option value="">Todos</option>
+          </select>
+        </div>
+        
+        <div>
+          <button type="submit" class="btn" style="background:#28a745;color:white;width:100%">Filtrar</button>
+        </div>
+        
+        <div>
+          <a href="{% url 'auditoria' %}" class="btn" style="background:#6c757d;color:white;text-decoration:none;display:inline-block">Limpar</a>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div style="margin-bottom:15px;display:flex;gap:10px">
+    <button onclick="if(confirm('Deseja limpar registros com mais de 90 dias?')) document.getElementById('formLimpar').submit()" class="btn" style="background:#dc3545;color:white">Limpar Antigos</button>
+  </div>
+
+  <form id="formLimpar" method="post" action="{% url 'limpar_auditoria' %}" style="display:none">
+    {% csrf_token %}
+    <input type="hidden" name="dias" value="90">
+  </form>
+
+  {% if dados %}
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Data/Hora</th>
+          <th>Tabela</th>
+          <th>Operação</th>
+          <th>ID Registro</th>
+          <th>Usuário</th>
+          <th>Descrição</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in dados %}
+          <tr>
+            <td>{{ a.ID_auditoria }}</td>
+            <td>{{ a.Data_hora|date:"d/m/Y H:i:s" }}</td>
+            <td><span style="background:#e9ecef;padding:3px 8px;border-radius:3px;font-size:0.85em">{{ a.Tabela_afetada }}</span></td>
+            <td>
+              {% if a.Operacao == 'INSERT' %}
+                <span style="background:#d4edda;color:#155724;padding:3px 8px;border-radius:3px;font-size:0.85em">INSERT</span>
+              {% elif a.Operacao == 'UPDATE' %}
+                <span style="background:#fff3cd;color:#856404;padding:3px 8px;border-radius:3px;font-size:0.85em">UPDATE</span>
+              {% else %}
+                <span style="background:#f8d7da;color:#721c24;padding:3px 8px;border-radius:3px;font-size:0.85em">DELETE</span>
+              {% endif %}
+            </td>
+            <td>{{ a.ID_registro }}</td>
+            <td style="font-size:0.85em">{{ a.Usuario_sistema }}</td>
+            <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.Descricao }}</td>
+            <td class="actions">
+              <a href="{% url 'auditoria_detalhes' a.ID_auditoria %}"><button class="btn btn-primary btn-sm">Ver Detalhes</button></a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="text-align:center;padding:40px;color:#6c757d">Nenhum registro de auditoria encontrado com os filtros aplicados.</p>
+  {% endif %}
+{% endblock %}
