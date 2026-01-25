@@ -1,9 +1,7 @@
 from django.shortcuts import render, redirect
-from django.db import connection
+from django.db import connection, DatabaseError
 from django.contrib import messages
-from django.db.utils import IntegrityError
 from datetime import date
-import re
 
 
 def login_required(view_func):
@@ -25,14 +23,6 @@ def execute(sql, params=None):
     with connection.cursor() as cursor:
         cursor.execute(sql, params or [])
     return True
-
-
-def extract_error_message(error_str):
-    """Extrai mensagem de erro do MySQL"""
-    match = re.search(r"'([^']*)'$", str(error_str))
-    if match:
-        return match.group(1)
-    return str(error_str)
 
 
 @login_required
@@ -59,18 +49,17 @@ def livros_add(request):
                 (Titulo, Autor_id, ISBN, Ano_publicacao, Genero_id, Editora_id, Quantidade_disponivel, Resumo)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, [titulo, autor_id, isbn, ano, genero_id, editora_id, qtd, resumo])
-            
+
             messages.success(request, f"Livro '{titulo}' cadastrado com sucesso!")
             return redirect('livros')
-            
-        except Exception as e:
-            error_msg = extract_error_message(e)
-            messages.error(request, f"Erro ao cadastrar livro: {error_msg}")
-            
-            # Retorna dados para preencher o formulário novamente
+
+        except DatabaseError as e:
+            messages.error(request, e.args[1])
+
             autores = query("SELECT * FROM Autores")
             generos = query("SELECT * FROM Generos")
             editoras = query("SELECT * FROM Editoras")
+
             return render(request, 'livro_add.html', {
                 'autores': autores,
                 'generos': generos,
@@ -88,6 +77,7 @@ def livros_add(request):
     autores = query("SELECT * FROM Autores")
     generos = query("SELECT * FROM Generos")
     editoras = query("SELECT * FROM Editoras")
+
     return render(request, 'livro_add.html', {
         'autores': autores,
         'generos': generos,
@@ -120,24 +110,18 @@ def livros_edit(request, id):
                     Resumo = %s
                 WHERE ID_livro = %s
             """, [titulo, autor_id, isbn, ano, genero_id, editora_id, qtd, resumo, id])
-            
+
             messages.success(request, f"Livro '{titulo}' atualizado com sucesso!")
-            
-            # Verificar se a quantidade mudou e informar
-            livro_antigo = query("SELECT Quantidade_disponivel FROM Livros WHERE ID_livro = %s", [id])
-            if livro_antigo and int(qtd) != livro_antigo[0]['Quantidade_disponivel']:
-                messages.info(request, f"Estoque atualizado automaticamente pelo sistema")
-            
             return redirect('livros')
-            
-        except Exception as e:
-            error_msg = extract_error_message(e)
-            messages.error(request, f"Erro ao atualizar livro: {error_msg}")
+
+        except DatabaseError as e:
+            messages.error(request, e.args[1])
 
     livro = query("SELECT * FROM Livros WHERE ID_livro = %s", [id])[0]
     autores = query("SELECT * FROM Autores")
     generos = query("SELECT * FROM Generos")
     editoras = query("SELECT * FROM Editoras")
+
     return render(request, 'livros_edit.html', {
         'livro': livro,
         'autores': autores,
@@ -150,18 +134,17 @@ def livros_edit(request, id):
 def livros_delete(request, id):
     try:
         livro = query("SELECT Titulo FROM Livros WHERE ID_livro = %s", [id])
+
         if livro:
             titulo = livro[0]['Titulo']
             execute("DELETE FROM Livros WHERE ID_livro = %s", [id])
             messages.success(request, f"Livro '{titulo}' excluído com sucesso!")
         else:
             messages.error(request, "Livro não encontrado")
-    except IntegrityError:
-        messages.error(request, "Não é possível excluir este livro pois existem empréstimos vinculados a ele")
-    except Exception as e:
-        error_msg = extract_error_message(e)
-        messages.error(request, f"Erro ao excluir livro: {error_msg}")
-    
+
+    except DatabaseError as e:
+        messages.error(request, e.args[1])
+
     return redirect('livros')
 
 

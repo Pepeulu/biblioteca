@@ -31,8 +31,23 @@ def generos(request):
 def generos_add(request):
     if request.method == 'POST':
         nome = request.POST.get('nome')
-        execute("INSERT INTO Generos (Nome_genero) VALUES (%s)", [nome])
-        return redirect('generos')
+
+        try:
+            execute(
+                "INSERT INTO Generos (Nome_genero) VALUES (%s)",
+                [nome]
+            )
+            return redirect('generos')
+
+        except Exception as e:
+
+            # mensagem original do MySQL trigger
+            erro_mysql = e.args[1]
+
+            messages.error(request, erro_mysql)
+
+            return redirect('generos_add')
+
     return render(request, 'genero_add.html')
 
 @login_required
